@@ -9,8 +9,12 @@ import numpy as np
 
 ###### Program Parameters ######
 error1 = 25
-error2 = 25
-backup_iterations = 3
+error2 = 30
+backup_iterations = 5
+################################
+
+###### Testnig Parameters ######
+file = 'org/13.tif'
 ################################
 
 
@@ -20,9 +24,50 @@ original_x, original_y = df_org.iloc[:, 0], df_org.iloc[:, 1]
 original_points = np.array([original_x, original_y]).T
 
 
-df_det = pd.read_csv('practical_sample.csv')
-detected_x, detected_y = df_det.iloc[:33, 6], df_det.iloc[:33, 7]
-detected_points = np.array([detected_x, detected_y]).T
+# read image
+image_org = cv.imread(file)
+image_org = cv.cvtColor(image_org, cv.COLOR_BGR2GRAY)
+
+X, Y = np.meshgrid(np.arange(-512, 512), np.arange(-512, 512))
+image_org[np.sqrt(X**2 + Y**2) > 979/2] = 0
+
+
+image = cv.medianBlur(image_org, 7)
+
+kernel = np.array([
+    [1, 0, -1],
+    [2, 0, -2],
+    [1, 0, -1]
+])
+
+
+image = cv.GaussianBlur(image, (7, 7), 0)
+
+image1 = cv.filter2D(image, -1, kernel)
+image2 = cv.filter2D(image, -1, -kernel)
+image3 = cv.filter2D(image, -1, kernel.T)
+image4 = cv.filter2D(image, -1, -(kernel.T))
+
+image = image1 + image2 + image3 + image4
+ 
+image_org[image > 50] = 0
+
+circles = cv.HoughCircles(image_org, cv.HOUGH_GRADIENT, 1, 20, None, 150, 10, 6, 8)
+
+detected_points = []
+if circles is not None:
+    circles = np.uint16(np.around(circles))
+    for i in circles[0, :]:
+        detected_points.append((i[0], i[1]))
+        cv.circle(image, (i[0], i[1]), i[2], (255, 255, 255), 1)
+else:
+    print("No circles detected")
+    exit()
+cv.imshow('image', image)
+cv.waitKey(0)
+
+detected_points = np.array(detected_points)
+detected_x, detected_y = detected_points[:, 0], detected_points[:, 1]
 
 Match = namedtuple('Match', ['original', 'detected', 'size'])
 
@@ -59,6 +104,7 @@ for i in range(m):
     for j in range(m):
         if np.linalg.norm(detected_distance_matrix[0, 1] - original_distance_matrix[i, j]) < error1:
             matches.append(Match(original=(i, j), detected=(0, 1), size=2))
+
 
 candidatesInEachStep = [len(matches)]
 biggestCandidateInEachStep = [max(match.size for match in matches)]
