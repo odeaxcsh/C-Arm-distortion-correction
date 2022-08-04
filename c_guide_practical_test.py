@@ -1,22 +1,23 @@
 from collections import namedtuple
+import time
 import pandas as pd
 import matplotlib.pyplot as plt
-
 import cv2 as cv
-
 import numpy as np
 
 
 ###### Program Parameters ######
 error1 = 25
-error2 = 30
-backup_iterations = 5
+error2 = 25
+backup_iterations = 3
 ################################
 
 ###### Testnig Parameters ######
-file = 'org/13.tif'
+# files are [13, 14, 15, 16, 57, 58, 59, 60, 61, 143]
+file = 'org/{}.tif'.format(58)
 ################################
 
+### images number 31 and 61 are not okay ###
 
 df_org = pd.read_csv('sample.csv')
 
@@ -26,11 +27,16 @@ original_points = np.array([original_x, original_y]).T
 
 # read image
 image_org = cv.imread(file)
+
+### IMAGE NUMBER 57 THROWS AN ERROR ###
+image_org = cv.resize(image_org, (1024, 1024))
 image_org = cv.cvtColor(image_org, cv.COLOR_BGR2GRAY)
 
 X, Y = np.meshgrid(np.arange(-512, 512), np.arange(-512, 512))
 image_org[np.sqrt(X**2 + Y**2) > 979/2] = 0
 
+cv.imshow(file, cv.resize(image_org, (512, 512)))
+cv.waitKey(0)
 
 image = cv.medianBlur(image_org, 7)
 
@@ -63,11 +69,14 @@ if circles is not None:
 else:
     print("No circles detected")
     exit()
-cv.imshow('image', image)
-cv.waitKey(0)
 
-detected_points = np.array(detected_points)
+cv.imshow('image', cv.resize(image, (512, 512)))
+cv.waitKey(0)
+cv.destroyAllWindows()
+
+detected_points = np.array(detected_points, dtype='float32')
 detected_x, detected_y = detected_points[:, 0], detected_points[:, 1]
+
 
 Match = namedtuple('Match', ['original', 'detected', 'size'])
 
@@ -102,23 +111,23 @@ n, m = len(detected_points), len(original_points)
 matches = []
 for i in range(m):
     for j in range(m):
-        if np.linalg.norm(detected_distance_matrix[0, 1] - original_distance_matrix[i, j]) < error1:
+        if abs(detected_distance_matrix[0, 1] - original_distance_matrix[i, j]) < error1:
             matches.append(Match(original=(i, j), detected=(0, 1), size=2))
-
 
 candidatesInEachStep = [len(matches)]
 biggestCandidateInEachStep = [max(match.size for match in matches)]
 
 print('Number of matches in each step:')
-print('\t 1. ', len(matches))
+print('\t 1. ', len(matches), biggestCandidateInEachStep[0])
 
+start_time = time.time()
 for step in range(2, len(detected_points)):
     ###### Update Section ######
     new_matches = []
     for match in matches:
         foundMatch = False
         for i in range(m):
-            if expandMatch(match, i, step, original_distance_matrix, detected_distance_matrix):
+            if i not in match and expandMatch(match, i, step, original_distance_matrix, detected_distance_matrix):
                 new_matches.append(Match(
                     original=(*match.original, i),
                     detected=(*match.detected, step),
@@ -139,10 +148,13 @@ for step in range(2, len(detected_points)):
             match for match in matches if match.size == biggestMatch.size and match.detected[-1] <= step - backup_iterations
         ]
     ###########################
-    
-    print(f'\t {step}. ', len(matches))
+
+
+    ## count matches of each size  
     candidatesInEachStep.append(len(matches))
     biggestCandidateInEachStep.append(biggestMatch.size)
+
+    print(f'\t {step}. ', len(matches), biggestCandidateInEachStep[-1])
 
     # draw_matches = matches
     # for match in draw_matches:
@@ -165,6 +177,7 @@ for step in range(2, len(detected_points)):
     #     plt.pause(1 / len(matches))
     # plt.pause(0.1)
 
+end_time = time.time()
 print()
 print(f'Number of matches: {len(matches)}')
 if len(matches) != 0:
@@ -173,7 +186,9 @@ if len(matches) != 0:
 
 bestMatches = [match for match in matches if match.size == biggestCandidateInEachStep[-1]]
 print(f'Number of best matches: {len(bestMatches)}')
-for match in bestMatches:
+print(f'Time: {end_time - start_time}')
+
+for match in bestMatches[:3]:
     outliers = [i for i in range(n) if i not in match.detected]
     plt.xlim(0, max(original_x))
     plt.ylim(0, max(original_x))
