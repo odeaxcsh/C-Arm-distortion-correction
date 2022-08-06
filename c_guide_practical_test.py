@@ -202,11 +202,32 @@ for match in bestMatches[:3]:
         plt.plot([detected_points[i, 0], original_points[j, 0]], [detected_points[i, 1], original_points[j, 1]], 'g-', linewidth=1)
     plt.show()
 
-x = list(range(1, len(candidatesInEachStep) + 1))
 
+    ### Find transformation matrix ###
+    center_original = np.mean(original_points[match.original, :], axis=0)
+    center_detected = np.mean(detected_points[match.detected, :], axis=0)
+    A = np.zeros((2, 2))
+    for i in range(match.size):
+        A += np.outer(
+            original_points[match.original[i], :] - center_original, 
+            detected_points[match.detected[i], :] - center_detected
+        )
+    U, S, V = np.linalg.svd(A)
+    rotation = V @ U.T
+    
+    final_image = cv.resize(cv.imread(file), (1024, 1024))
+    for i in range(m):
+        x, y = original_points[i, :]
+        x_, y_ = rotation @ (original_points[i, :] - center_original) + center_detected
+        cv.circle(final_image, (int(x_), int(y_)), 5, (0, 0, 255), -1)
+    cv.imshow('final_image', cv.resize(final_image, (512, 512)))
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+
+
+x = list(range(1, len(candidatesInEachStep) + 1))
 fig, ax1 = plt.subplots()
 ax2 = ax1.twinx()
 ax1.plot(x, candidatesInEachStep, 'g-')
 ax2.plot(x, biggestCandidateInEachStep, 'b-')
 plt.show()
-
