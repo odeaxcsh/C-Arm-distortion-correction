@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import cv2 as cv
 import numpy as np
 
-
 ###### Program Parameters ######
 error1 = 25
 error2 = 25
@@ -14,10 +13,10 @@ backup_iterations = 3
 
 ###### Testnig Parameters ######
 # files are [13, 14, 15, 16, 57, 58, 59, 60, 61, 143]
-file = 'org/{}.tif'.format(58)
+file = 'org/{}.tif'.format(143)
 ################################
 
-### images number 31 and 61 are not okay ###
+### images number 13 and 61 are not okay ###
 
 df_org = pd.read_csv('sample.csv')
 
@@ -58,19 +57,21 @@ image = image1 + image2 + image3 + image4
  
 image_org[image > 50] = 0
 
+
 circles = cv.HoughCircles(image_org, cv.HOUGH_GRADIENT, 1, 20, None, 150, 10, 6, 8)
 
 detected_points = []
+show_image = cv.cvtColor(image, cv.COLOR_GRAY2RGB)
 if circles is not None:
     circles = np.uint16(np.around(circles))
     for i in circles[0, :]:
         detected_points.append((i[0], i[1]))
-        cv.circle(image, (i[0], i[1]), i[2], (255, 255, 255), 1)
+        cv.circle(show_image, (i[0], i[1]), i[2], (0, 0, 255), 1)
 else:
     print("No circles detected")
     exit()
 
-cv.imshow('image', cv.resize(image, (512, 512)))
+cv.imshow('Processed image', cv.resize(show_image, (512, 512)))
 cv.waitKey(0)
 cv.destroyAllWindows()
 
@@ -208,3 +209,4 @@ ax2 = ax1.twinx()
 ax1.plot(x, candidatesInEachStep, 'g-')
 ax2.plot(x, biggestCandidateInEachStep, 'b-')
 plt.show()
+
