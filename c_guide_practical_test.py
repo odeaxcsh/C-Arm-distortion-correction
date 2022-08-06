@@ -57,8 +57,8 @@ image = image1 + image2 + image3 + image4
  
 image_org[image > 50] = 0
 
-
-circles = cv.HoughCircles(image_org, cv.HOUGH_GRADIENT, 1, 20, None, 150, 10, 6, 8)
+### Optimal Parameters are 150 and 10 ###
+circles = cv.HoughCircles(image_org, cv.HOUGH_GRADIENT, 1, 20, None, 100, 4, 6, 8)
 
 detected_points = []
 show_image = cv.cvtColor(image, cv.COLOR_GRAY2RGB)
@@ -199,7 +199,7 @@ for match in bestMatches[:3]:
 
     for i, j in zip(match.detected, match.original):
         plt.scatter(detected_points[i, 0], detected_points[i, 1], s=12, color='g')
-        plt.plot([detected_points[i, 0], original_points[j, 0]], [detected_points[i, 1], original_points[j, 1]], 'g-')
+        plt.plot([detected_points[i, 0], original_points[j, 0]], [detected_points[i, 1], original_points[j, 1]], 'g-', linewidth=1)
     plt.show()
 
 x = list(range(1, len(candidatesInEachStep) + 1))
