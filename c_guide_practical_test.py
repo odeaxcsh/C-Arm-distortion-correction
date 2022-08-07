@@ -5,37 +5,45 @@ import matplotlib.pyplot as plt
 import cv2 as cv
 import numpy as np
 
-###### Program Parameters ######
-error1 = 25
-error2 = 25
-backup_iterations = 0
-################################
+import os, argparse
 
-###### Testnig Parameters ######
-# files are [13, 14, 15, 16, 57, 58, 59, 60, 61, 143]
-file = 'org/{}.tif'.format(59)
-################################
+parser = argparse.ArgumentParser()
+parser.add_argument('--input-image', help='path to input image', required=True)
+parser.add_argument('--outdir', help='path to output image', default='./images')
+parser.add_argument('--reference', help='path to reference csv file', default='reference.csv')
+parser.add_argument('--save', help='save output image', action='store_true')
+parser.add_argument('--no-plot', help='do not plot', action='store_true')
+parser.add_argument('--error', help='error threshold', default=25, type=int)
+parser.add_argument('--backup-iterations', help='number of backup iterations', default=0, type=int)
 
-### images number 13 and 61 are not okay ###
+args = parser.parse_args()
 
-df_org = pd.read_csv('sample.csv')
+error1 = args.error
+error2 = args.error
+backup_iterations = args.backup_iterations
+
+file_path = args.input_image
+file_name, file_extension = os.path.splitext(file_path.split('/')[-1])
+
+
+df_org = pd.read_csv('reference.csv', index_col=0)
 
 original_x, original_y = df_org.iloc[:, 0], df_org.iloc[:, 1]
 original_points = np.array([original_x, original_y]).T
 
 
-# read image
-image_org = cv.imread(file)
+image_org = cv.imread(file_path)
 
-### IMAGE NUMBER 57 THROWS AN ERROR ###
+### IMAGE NUMBER 57 THROWS AN ERROR AND HAVE TO BE RESIZED ###
 image_org = cv.resize(image_org, (1024, 1024))
 image_org = cv.cvtColor(image_org, cv.COLOR_BGR2GRAY)
 
 X, Y = np.meshgrid(np.arange(-512, 512), np.arange(-512, 512))
 image_org[np.sqrt(X**2 + Y**2) > 979/2] = 0
 
-cv.imshow(file, cv.resize(image_org, (512, 512)))
-cv.waitKey(0)
+if not args.no_plot:
+    cv.imshow(file_name, cv.resize(image_org, (512, 512)))
+    cv.waitKey(0)
 
 image = cv.medianBlur(image_org, 7)
 
@@ -71,9 +79,12 @@ else:
     print("No circles detected")
     exit()
 
-cv.imshow('Processed image', cv.resize(show_image, (512, 512)))
-cv.waitKey(0)
-cv.destroyAllWindows()
+if not args.no_plot:
+    cv.imshow('Processed image', cv.resize(show_image, (512, 512)))
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+if args.save:
+    cv.imwrite(os.path.join(args.outdir, file_name + '-processed.png'), cv.resize(show_image, (512, 512)))
 
 detected_points = np.array(detected_points, dtype='float32')
 detected_x, detected_y = detected_points[:, 0], detected_points[:, 1]
@@ -97,12 +108,15 @@ print(f'''
     ratio of detected points: {len(detected_points) / len(original_points)}
 ''')
 
-plt.xlim(0, max(original_x))
-plt.ylim(0, max(original_y))
-plt.plot(original_x, original_y, 'bo', label='original')
-plt.plot(detected_x, detected_y, 'ro', label='detected')
-plt.show()
+fig, ax = plt.subplots()
 
+ax.set_xlim(0, max(original_x))
+ax.set_ylim(0, max(original_y))
+ax.plot(original_x, original_y, 'bo', label='original')
+ax.plot(detected_x, detected_y, 'ro', label='detected')
+ax.legend()
+if not args.no_plot:
+    plt.show()
 
 original_distance_matrix = getDistanceMatrix(original_points)
 detected_distance_matrix = getDistanceMatrix(detected_points)
@@ -189,19 +203,30 @@ bestMatches = [match for match in matches if match.size == biggestCandidateInEac
 print(f'Number of best matches: {len(bestMatches)}')
 print(f'Time: {end_time - start_time}')
 
+if len(bestMatches) == 0:
+    print('No matches found')
+    exit(-1)
+elif len(bestMatches) > 1:
+    print('Warning: multiple matches found')
+
 for match in bestMatches[:3]:
     outliers = [i for i in range(n) if i not in match.detected]
-    plt.xlim(0, max(original_x))
-    plt.ylim(0, max(original_x))
-    plt.scatter(detected_x, detected_y, s=15, edgecolors='g', facecolors='none')
-    plt.scatter(original_x, original_y, s=12, color='b')
-    plt.scatter(detected_points[outliers, 0], detected_points[outliers, 1], s=30, edgecolors='r', facecolors='none')
+    fig, ax = plt.subplots()
+    ax.set_xlim(0, max(original_x))
+    ax.set_ylim(0, max(original_x))
+    ax.scatter(detected_x, detected_y, s=15, edgecolors='g', facecolors='none')
+    ax.scatter(original_x, original_y, s=12, color='b')
+    ax.scatter(detected_points[outliers, 0], detected_points[outliers, 1], s=30, edgecolors='r', facecolors='none')
 
     for i, j in zip(match.detected, match.original):
-        plt.scatter(detected_points[i, 0], detected_points[i, 1], s=12, color='g')
-        plt.plot([detected_points[i, 0], original_points[j, 0]], [detected_points[i, 1], original_points[j, 1]], 'g-', linewidth=1)
-    plt.show()
+        ax.scatter(detected_points[i, 0], detected_points[i, 1], s=12, color='g')
+        ax.plot([detected_points[i, 0], original_points[j, 0]], [detected_points[i, 1], original_points[j, 1]], 'g-', linewidth=1)
+    
 
+    if not args.no_plot:
+        plt.show()
+    if args.save:
+        fig.savefig(os.path.join(args.outdir, file_name + '-matching.png'))
 
     ### Find transformation matrix ###
     center_original = np.mean(original_points[match.original, :], axis=0)
@@ -215,19 +240,26 @@ for match in bestMatches[:3]:
     U, S, V = np.linalg.svd(A)
     rotation = V @ U.T
     
-    final_image = cv.resize(cv.imread(file), (1024, 1024))
+    final_image = cv.resize(cv.imread(file_path), (1024, 1024))
     for i in range(m):
         x, y = original_points[i, :]
         x_, y_ = rotation @ (original_points[i, :] - center_original) + center_detected
         cv.circle(final_image, (int(x_), int(y_)), 5, (0, 0, 255), -1)
-    cv.imshow('final_image', cv.resize(final_image, (512, 512)))
-    cv.waitKey(0)
-    cv.destroyAllWindows()
-
+    
+    if not args.no_plot:
+        cv.imshow('final_image', cv.resize(final_image, (512, 512)))
+        cv.waitKey(0)
+        cv.destroyAllWindows()
+    if args.save:
+        cv.imwrite(os.path.join(args.outdir, file_name + '-final.png'), final_image)
 
 x = list(range(1, len(candidatesInEachStep) + 1))
 fig, ax1 = plt.subplots()
 ax2 = ax1.twinx()
 ax1.plot(x, candidatesInEachStep, 'g-')
 ax2.plot(x, biggestCandidateInEachStep, 'b-')
-plt.show()
+
+if not args.no_plot:
+    plt.show()
+if args.save:
+    fig.savefig(os.path.join(args.outdir, file_name + '-process.png'))
