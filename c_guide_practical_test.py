@@ -8,12 +8,12 @@ import numpy as np
 ###### Program Parameters ######
 error1 = 25
 error2 = 25
-backup_iterations = 3
+backup_iterations = 0
 ################################
 
 ###### Testnig Parameters ######
 # files are [13, 14, 15, 16, 57, 58, 59, 60, 61, 143]
-file = 'org/{}.tif'.format(143)
+file = 'org/{}.tif'.format(59)
 ################################
 
 ### images number 13 and 61 are not okay ###
@@ -41,7 +41,7 @@ image = cv.medianBlur(image_org, 7)
 
 kernel = np.array([
     [1, 0, -1],
-    [2, 0, -2],
+    [3, 0, -3],
     [1, 0, -1]
 ])
 
