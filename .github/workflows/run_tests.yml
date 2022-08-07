@@ -37,5 +37,8 @@ jobs:
       uses: peter-evans/create-pull-request@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: Run code for rusult images
-        title: Run code for rusult images
+        branch: test_result_images
+        delete-branch: True
+        commit-message: Run code for result images
+        title: Result of test images
+        reviewers: odeaxcsh
