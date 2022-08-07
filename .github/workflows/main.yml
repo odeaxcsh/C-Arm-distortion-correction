@@ -1,0 +1,41 @@
+name: Run algorithms for test images
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.10"
+    - name: Install dependencies
+      run: |
+        sudo apt-get install qt5-default
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+  
+    - name: Prepare Environment
+      run: mkdir test_results
+    
+    - name: Run 
+      run: |
+        for image in $(ls org)
+        do
+          python c_guide_practical_test.py --input-image=org/${image} --save --no-plot --outdir=test_results
+        done
+    
+    - name: Create pull request for result images
+      uses: peter-evans/create-pull-request@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: Run code for rusult images
+        title: Run code for rusult images
