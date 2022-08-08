@@ -222,12 +222,23 @@ for match in bestMatches[:3]:
         ax.scatter(detected_points[i, 0], detected_points[i, 1], s=12, color='g')
         ax.plot([detected_points[i, 0], original_points[j, 0]], [detected_points[i, 1], original_points[j, 1]], 'g-', linewidth=1)
     
-
     if not args.no_plot:
         plt.show()
     if args.save:
         fig.savefig(os.path.join(args.outdir, file_name + '-matching.png'))
 
+
+    final_image = cv.resize(cv.imread(file_path), (1024, 1024))
+    for i in match.detected:
+        cv.circle(final_image, (int(detected_points[i, 0]), int(detected_points[i, 1])), 5, (0, 0, 255), -1)
+    
+    if not args.no_plot:
+        cv.imshow('image', cv.resize(final_image, (512, 512)))
+        cv.waitKey(0)
+
+    if args.save:
+        cv.imwrite(os.path.join(args.outdir, file_name + '-detected.png'), final_image)
+    
     ### Find transformation matrix ###
     center_original = np.mean(original_points[match.original, :], axis=0)
     center_detected = np.mean(detected_points[match.detected, :], axis=0)
